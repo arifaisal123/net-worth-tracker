@@ -12,7 +12,7 @@ import {
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
-  onAuthStateChanged, signOut 
+  onAuthStateChanged, signOut, sendPasswordResetEmail
 } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
@@ -44,10 +44,11 @@ export default function App() {
   const [isLogoutMenuOpen, setIsLogoutMenuOpen] = useState(false);
   
   // Auth Form State
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'signup', or 'reset'
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
 
   // Settings
   const [currencySettings, setCurrencySettings] = useState({ base: 'BDT', display: 'BDT', usdRate: 110 });
@@ -101,15 +102,23 @@ export default function App() {
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
+    setAuthMessage('');
     setIsLoading(true);
     try {
       if (authMode === 'login') {
         await signInWithEmailAndPassword(auth, authEmail, authPassword);
-      } else {
+        setAuthEmail('');
+        setAuthPassword('');
+      } else if (authMode === 'signup') {
         await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        setAuthEmail('');
+        setAuthPassword('');
+      } else if (authMode === 'reset') {
+        await sendPasswordResetEmail(auth, authEmail);
+        setAuthMessage('Password reset email sent! Check your inbox.');
+        setIsLoading(false);
+        return; // Don't clear email or stop here so user sees the message
       }
-      setAuthEmail('');
-      setAuthPassword('');
     } catch (err) {
       setAuthError(err.message.replace('Firebase: ', ''));
       setIsLoading(false);
@@ -120,7 +129,16 @@ export default function App() {
     try {
       await signOut(auth);
       setIsLogoutMenuOpen(false);
+      setAuthMode('login'); // Reset auth mode on logout
+      setAuthError('');
+      setAuthMessage('');
     } catch (error) { console.error("Logout error:", error); }
+  };
+
+  const switchAuthMode = (mode) => {
+    setAuthMode(mode);
+    setAuthError('');
+    setAuthMessage('');
   };
 
   // --- DERIVED DATA & LOGIC ---
@@ -263,12 +281,19 @@ export default function App() {
           
           <div className="p-8">
             <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">
-              {authMode === 'login' ? 'Welcome Back' : 'Create Your Account'}
+              {authMode === 'login' && 'Welcome Back'}
+              {authMode === 'signup' && 'Create Your Account'}
+              {authMode === 'reset' && 'Reset Your Password'}
             </h2>
             
             {authError && (
               <div className="mb-6 p-3 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm text-center">
                 {authError}
+              </div>
+            )}
+            {authMessage && (
+              <div className="mb-6 p-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-sm text-center">
+                {authMessage}
               </div>
             )}
 
@@ -284,34 +309,56 @@ export default function App() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                <div className="relative">
-                  <Lock className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" />
-                  <input 
-                    type="password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                    placeholder="••••••••"
-                  />
+
+              {authMode !== 'reset' && (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-slate-700">Password</label>
+                    {authMode === 'login' && (
+                      <button 
+                        type="button" 
+                        onClick={() => switchAuthMode('reset')}
+                        className="text-xs text-emerald-600 font-semibold hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" />
+                    <input 
+                      type="password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                      placeholder="••••••••"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
               <button 
                 type="submit" 
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition-colors mt-6 shadow-sm"
               >
-                {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                {authMode === 'login' ? 'Sign In' : authMode === 'signup' ? 'Create Account' : 'Send Reset Link'}
               </button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-slate-500">
-              {authMode === 'login' ? "Don't have an account? " : "Already have an account? "}
-              <button 
-                type="button" 
-                onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthError(''); }}
-                className="text-emerald-600 font-bold hover:underline"
-              >
-                {authMode === 'login' ? 'Sign up here' : 'Log in instead'}
-              </button>
+            <div className="mt-6 flex flex-col items-center gap-3 text-sm text-slate-500">
+              {authMode === 'login' ? (
+                <div>
+                  Don't have an account?{' '}
+                  <button type="button" onClick={() => switchAuthMode('signup')} className="text-emerald-600 font-bold hover:underline">
+                    Sign up here
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  Remembered your password?{' '}
+                  <button type="button" onClick={() => switchAuthMode('login')} className="text-emerald-600 font-bold hover:underline">
+                    Log in instead
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
