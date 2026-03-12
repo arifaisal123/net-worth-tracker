@@ -17,12 +17,13 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'fi
 // This uses the environment's built-in cloud storage automatically.
 // If you host this externally, replace the fallback object with your own Firebase keys.
 const firebaseConfig = {
-  apiKey: "AIzaSyAZ7XmnXhUzWsTcR2FUHHpQN1K58EwPWWk",
-  authDomain: "networthtracker-6aec8.firebaseapp.com",
-  projectId: "networthtracker-6aec8",
-  storageBucket: "networthtracker-6aec8.firebasestorage.app",
-  messagingSenderId: "993912212885",
-  appId: "1:993912212885:web:464a86937b6f9a26f93a9c"}; 
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
