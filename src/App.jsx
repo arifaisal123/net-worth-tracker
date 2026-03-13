@@ -18,7 +18,9 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from 'fi
 
 // --- STRICT FIREBASE INITIALIZATION ---
 // We have removed the AI canvas override. This will forcefully 
-// connect to your real Firebase project using your Vercel variables.
+// connect to your real Firebase project. 
+// Note: Replace these placeholder strings with your actual Firebase config keys 
+// before deploying or testing locally.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -49,6 +51,7 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [authMessage, setAuthMessage] = useState('');
+  const [dbError, setDbError] = useState(''); // ADDED: Database error state
 
   // Settings
   const [currencySettings, setCurrencySettings] = useState({ base: 'BDT', display: 'BDT', usdRate: 110 });
@@ -77,34 +80,48 @@ export default function App() {
 
   // --- FIREBASE AUTH & DATA FETCHING ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setAuthUser(user);
+    try {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setAuthUser(user);
+        if (!user) {
+          setEntries([]); // ADDED: Wipe the screen clean instantly when logging out
+          setDbError('');
+        }
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Firebase auth initialization failed:", error);
       setIsLoading(false);
-    });
-    return () => unsubscribe();
+    }
   }, []);
 
   useEffect(() => {
     if (!authUser) return;
     setIsLoading(true);
 
-    const entriesRef = collection(db, 'artifacts', appId, 'users', authUser.uid, 'entries');
-    const unsubscribeEntries = onSnapshot(entriesRef, (snapshot) => {
-      const fetchedEntries = [];
-      snapshot.forEach((doc) => { fetchedEntries.push({ id: doc.id, ...doc.data() }); });
-      setEntries(fetchedEntries);
-      setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching entries:", error);
-      setIsLoading(false);
-    });
+    try {
+      const entriesRef = collection(db, 'artifacts', appId, 'users', authUser.uid, 'entries');
+      const unsubscribeEntries = onSnapshot(entriesRef, (snapshot) => {
+        const fetchedEntries = [];
+        snapshot.forEach((doc) => { fetchedEntries.push({ id: doc.id, ...doc.data() }); });
+        setEntries(fetchedEntries);
+        setIsLoading(false);
+      }, (error) => {
+        console.error("Error fetching entries:", error);
+        setIsLoading(false);
+      });
 
-    const settingsRef = collection(db, 'artifacts', appId, 'users', authUser.uid, 'settings');
-    const unsubscribeSettings = onSnapshot(settingsRef, (snapshot) => {
-      snapshot.forEach(doc => { if (doc.id === 'displayConfig') setCurrencySettings(doc.data()); });
-    });
+      const settingsRef = collection(db, 'artifacts', appId, 'users', authUser.uid, 'settings');
+      const unsubscribeSettings = onSnapshot(settingsRef, (snapshot) => {
+        snapshot.forEach(doc => { if (doc.id === 'displayConfig') setCurrencySettings(doc.data()); });
+      });
 
-    return () => { unsubscribeEntries(); unsubscribeSettings(); };
+      return () => { unsubscribeEntries(); unsubscribeSettings(); };
+    } catch (error) {
+      console.error("Error connecting to database. Please check configuration.", error);
+      setIsLoading(false);
+    }
   }, [authUser]);
 
   // --- AUTH HANDLERS ---
@@ -235,13 +252,22 @@ export default function App() {
       const docRef = doc(db, 'artifacts', appId, 'users', authUser.uid, 'entries', entryId);
       await setDoc(docRef, newEntry);
       setIsEntryModalOpen(false);
-    } catch (error) { console.error("Error saving:", error); }
+      setDbError(''); // Clear any previous errors
+    } catch (error) { 
+      console.error("Error saving:", error); 
+      setDbError("Database Sync Failed: Permission Denied. Please check your Firestore Security Rules.");
+    }
   };
 
   const handleDeleteEntry = async (id) => {
     if (!authUser) return;
-    try { await deleteDoc(doc(db, 'artifacts', appId, 'users', authUser.uid, 'entries', id.toString())); } 
-    catch (error) { console.error("Error deleting:", error); }
+    try { 
+      await deleteDoc(doc(db, 'artifacts', appId, 'users', authUser.uid, 'entries', id.toString())); 
+      setDbError('');
+    } catch (error) { 
+      console.error("Error deleting:", error); 
+      setDbError("Database Sync Failed: Permission Denied to delete.");
+    }
   };
 
   const handleUpdateSettings = async (newSettings) => {
@@ -534,6 +560,14 @@ export default function App() {
             <Plus className="w-5 h-5" /> Log Asset Entry
           </button>
         </header>
+
+        {/* ADDED: Visual Error Banner so silent failures never happen again */}
+        {dbError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex justify-between items-start md:items-center animate-in fade-in">
+            <p className="text-sm font-medium">{dbError}</p>
+            <button onClick={() => setDbError('')} className="text-red-500 hover:text-red-700 shrink-0 ml-4"><X className="w-5 h-5"/></button>
+          </div>
+        )}
 
         {/* --- TABS --- */}
         {activeTab === 'dashboard' && (
