@@ -577,7 +577,7 @@ export default function App() {
                 <div className="flex justify-between items-start mb-2 md:mb-4">
                   <div>
                     <p className="text-xs md:text-sm font-medium text-slate-500 group-hover:text-emerald-600 transition-colors">Total Net Worth</p>
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 truncate max-w-[200px]">{formatCurrency(currentMetrics.total)}</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{formatCurrency(currentMetrics.total)}</h2>
                   </div>
                   <div className="p-2 rounded-lg bg-emerald-100 text-emerald-600 shrink-0"><Wallet className="w-5 h-5 md:w-6 md:h-6" /></div>
                 </div>
@@ -588,7 +588,7 @@ export default function App() {
                 <div className="flex justify-between items-start mb-2 md:mb-4">
                   <div>
                     <p className="text-xs md:text-sm font-medium text-slate-500 group-hover:text-blue-600 transition-colors">Liquid Assets</p>
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 truncate max-w-[200px]">{formatCurrency(currentMetrics.liquid)}</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{formatCurrency(currentMetrics.liquid)}</h2>
                   </div>
                   <div className="p-2 rounded-lg bg-blue-100 text-blue-600 shrink-0"><TrendingUp className="w-5 h-5 md:w-6 md:h-6" /></div>
                 </div>
@@ -599,7 +599,7 @@ export default function App() {
                 <div className="flex justify-between items-start mb-2 md:mb-4">
                   <div>
                     <p className="text-xs md:text-sm font-medium text-slate-500 group-hover:text-violet-600 transition-colors">Tangible Assets</p>
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 truncate max-w-[200px]">{formatCurrency(currentMetrics.tangible)}</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1">{formatCurrency(currentMetrics.tangible)}</h2>
                   </div>
                   <div className="p-2 rounded-lg bg-violet-100 text-violet-600 shrink-0"><Building className="w-5 h-5 md:w-6 md:h-6" /></div>
                 </div>
